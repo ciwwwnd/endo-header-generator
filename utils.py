@@ -9,6 +9,11 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
+try:
+    import streamlit as st
+except ImportError:
+    st = None
+
 from config import (
     CATEGORY_CONFIG,
     COLOR_BALANCES,
@@ -237,16 +242,26 @@ def generate_image_bytes(client: OpenAI, prompt: str) -> bytes:
     return base64.b64decode(response.data[0].b64_json)
 
 
+def get_openai_api_key() -> str:
+    if st is not None:
+        try:
+            if "OPENAI_API_KEY" in st.secrets:
+                return st.secrets["OPENAI_API_KEY"]
+        except Exception:
+            pass
+
+    return os.getenv("OPENAI_API_KEY", "")
+
+
 def generate_images(
     titles: list[str],
     prompts: list[str],
     output_dir: Path,
     delay_seconds: float | None = None,
 ) -> list[Path | None]:
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = get_openai_api_key()
     if not api_key:
-        sys.exit("OPENAI_API_KEY is not set")
-
+        raise RuntimeError("OPENAI_API_KEY is not configured")
     client = OpenAI(api_key=api_key)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -272,9 +287,9 @@ def generate_images(
 
 
 def generate_single_image(prompt: str, output_path: Path) -> Path:
-    api_key = os.getenv("OPENAI_API_KEY")
+    api_key = get_openai_api_key()
     if not api_key:
-        sys.exit("OPENAI_API_KEY is not set")
+        raise RuntimeError("OPENAI_API_KEY is not configured")
 
     client = OpenAI(api_key=api_key)
     output_path.parent.mkdir(parents=True, exist_ok=True)
